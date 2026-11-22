@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Lamp & Page — Distraction-Free Typing Tutor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Default Theme: Cool Moonlight Slate (from reference image) */
+      --bg-outer: #7C8A9E;
+      --bg-mid: #8E9BAE;
+      --bg-lamp-core: #C4D0E0;
+      --bg-lamp-halo: #A6B4C8;
+      --ink-color: #161B24;
+      --ink-ghost: rgba(22, 27, 36, 0.34);
+      --ink-muted: rgba(22, 27, 36, 0.48);
+      --ink-error: #9B2C2C;
+      --ink-error-bg: rgba(185, 28, 28, 0.14);
+      --line-color: #1B212A;
+      --pill-bg: #B5C4D8;
+      --pill-border: rgba(27, 33, 42, 0.35);
+      --pill-dot: #1B212A;
+      --caret-color: #161B24;
+      --hud-bg: rgba(22, 27, 36, 0.14);
+      --hud-border: rgba(22, 27, 36, 0.2);
+      --hud-text: #161B24;
+      --card-bg: rgba(196, 208, 224, 0.88);
+      --lamp-glow-opacity: 0.92;
+    }
+
+    [data-theme="amber"] {
+      /* Warm Desk Lamp Amber */
+      --bg-outer: #B8A488;
+      --bg-mid: #CBB89D;
+      --bg-lamp-core: #F5E9D3;
+      --bg-lamp-halo: #E0CFAF;
+      --ink-color: #241C14;
+      --ink-ghost: rgba(36, 28, 20, 0.34);
+      --ink-muted: rgba(36, 28, 20, 0.48);
+      --ink-error: #9B2C2C;
+      --ink-error-bg: rgba(185, 28, 28, 0.13);
+      --line-color: #2C2218;
+      --pill-bg: #EADAC0;
+      --pill-border: rgba(44, 34, 24, 0.32);
+      --pill-dot: #2C2218;
+      --caret-color: #241C14;
+      --hud-bg: rgba(36, 28, 20, 0.12);
+      --hud-border: rgba(36, 28, 20, 0.18);
+      --hud-text: #241C14;
+      --card-bg: rgba(245, 233, 211, 0.9);
+      --lamp-glow-opacity: 0.95;
+    }
+
+    [data-theme="midnight"] {
+      /* Dark Midnight Lamp */
+      --bg-outer: #11151C;
+      --bg-mid: #171D26;
+      --bg-lamp-core: #2D3748;
+      --bg-lamp-halo: #1F2733;
+      --ink-color: #E2E8F0;
+      --ink-ghost: rgba(226, 232, 240, 0.28);
+      --ink-muted: rgba(226, 232, 240, 0.45);
+      --ink-error: #FCA5A5;
+      --ink-error-bg: rgba(248, 113, 113, 0.18);
+      --line-color: #64748B;
+      --pill-bg: #334155;
+      --pill-border: rgba(148, 163, 184, 0.4);
+      --pill-dot: #E2E8F0;
+      --caret-color: #F8FAFC;
+      --hud-bg: rgba(255, 255, 255, 0.08);
+      --hud-border: rgba(255, 255, 255, 0.14);
+      --hud-text: #E2E8F0;
+      --card-bg: rgba(31, 39, 51, 0.92);
+      --lamp-glow-opacity: 0.9;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-mid);
+      color: var(--ink-color);
+      font-family: 'Courier Prime', 'IBM Plex Mono', monospace;
+      transition: background-color 0.6s ease, color 0.5s ease;
+      user-select: none;
+    }
+
+    /* Ambient room vignette + lamp pool */
+    .paper-stage {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(
+          ellipse 54% 38% at var(--lamp-x, 50%) 52%,
+          var(--bg-lamp-core) 0%,
+          var(--bg-lamp-halo) 42%,
+          var(--bg-mid) 74%,
+          var(--bg-outer) 100%
+        );
+      transition: background 0.5s ease;
+      cursor: text;
+    }
+
+    /* Subtle organic paper grain overlay */
+    .paper-grain {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      z-index: 1;
+    }
+
+    /* Lamp beam cone subtle highlight above carriage */
+    .lamp-cone {
+      position: absolute;
+      top: 52%;
+      left: var(--lamp-x, 50%);
+      width: min(680px, 92vw);
+      height: 360px;
+      transform: translate(-50%, -92%);
+      background: radial-gradient(
+        ellipse 55% 65% at 50% 92%,
+        rgba(255, 255, 255, 0.28) 0%,
+        rgba(255, 255, 255, 0.08) 48%,
+        transparent 78%
+      );
+      pointer-events: none;
+      z-index: 2;
+      transition: left 0.09s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    [data-theme="midnight"] .lamp-cone {
+      background: radial-gradient(
+        ellipse 55% 65% at 50% 92%,
+        rgba(186, 210, 255, 0.12) 0%,
+        rgba(186, 210, 255, 0.03) 48%,
+        transparent 78%
+      );
+    }
+
+    /* Typewriter platen horizontal line positioned at 56% viewport height */
+    .platen-line {
+      position: absolute;
+      top: 56%;
+      left: 0;
+      width: 100%;
+      height: 1.5px;
+      background-color: var(--line-color);
+      opacity: 0.85;
+      z-index: 15;
+      pointer-events: none;
+      transition: background-color 0.5s ease;
+    }
+
+    /* Subtle margin ticks on the platen bar */
+    .margin-tick {
+      position: absolute;
+      top: -3px;
+      width: 1px;
+      height: 7px;
+      background-color: var(--line-color);
+      opacity: 0.35;
+    }
+
+    /* Sleek pill-shaped carriage indicator resting on the platen line */
+    .carriage-pill {
+      position: absolute;
+      top: 56%;
+      left: 0px;
+      transform: translate(-50%, -50%);
+      width: 34px;
+      height: 11px;
+      border-radius: 9999px;
+      background-color: var(--pill-bg);
+      border: 1px solid var(--pill-border);
+      box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.14),
+        inset 0 1px 1px rgba(255, 255, 255, 0.45);
+      z-index: 20;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition:
+        left 0.075s cubic-bezier(0.22, 1, 0.36, 1),
+        background-color 0.5s ease,
+        border-color 0.5s ease;
+    }
+
+    .carriage-pill::after {
+      content: '';
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background-color: var(--pill-dot);
+      opacity: 0.8;
+    }
+
+    /* Tactile shake when Backspace or restricted key is pressed */
+    @keyframes carriageReject {
+      0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+      20% { transform: translate(-50%, -50%) translateX(-5px); }
+      45% { transform: translate(-50%, -50%) translateX(4px); }
+      70% { transform: translate(-50%, -50%) translateX(-3px); }
+      85% { transform: translate(-50%, -50%) translateX(2px); }
+    }
+
+    .carriage-pill.reject {
+      animation: carriageReject 0.26s ease-in-out;
+    }
+
+    /* Paper sheet container anchored so the active line sits right above 56% */
+    .paper-viewport {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 56%;
+      overflow: hidden;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      padding-bottom: 11px; /* Exact gap between baseline of active text and platen line */
+    }
+
+    .paper-column {
+      width: 100%;
+      max-width: 680px;
+      padding: 0 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    /* Individual typed lines */
+    .typed-line {
+      font-size: clamp(15px, 2.1vw, 18.5px);
+      line-height: 1.72;
+      letter-spacing: 0.015em;
+      color: var(--ink-color);
+      white-space: pre;
+      min-height: 1.72em;
+      transform-origin: left center;
+      transition:
+        opacity 0.45s ease,
+        filter 0.45s ease,
+        transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        color 0.5s ease;
+    }
+
+    /* Active typing line styling */
+    .typed-line.active-line {
+      opacity: 1 !important;
+      filter: blur(0px) !important;
+      font-weight: 400;
+      position: relative;
+    }
+
+    /* Character states along the active prompt line */
+    .char-correct {
+      color: var(--ink-color);
+    }
+
+    .char-error {
+      color: var(--ink-error);
+      background-color: var(--ink-error-bg);
+      text-decoration: line-through;
+      text-decoration-thickness: 1.5px;
+      border-radius: 2px;
+    }
+
+    .char-ghost {
+      color: var(--ink-ghost);
+    }
+
+    .char-current {
+      color: var(--ink-color);
+      border-bottom: 2px solid var(--caret-color);
+      padding-bottom: 1px;
+    }
+
+    .char-current.strict-error {
+      color: var(--ink-error);
+      background-color: var(--ink-error-bg);
+      border-bottom-color: var(--ink-error);
+    }
+
+    /* Faint margin telemetry tucked just below the platen bar */
+    .margin-telemetry {
+      position: absolute;
+      top: calc(56% + 14px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 680px;
+      padding: 0 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: var(--ink-muted);
+      opacity: 0.55;
+      pointer-events: none;
+      z-index: 14;
+      transition: opacity 0.4s ease, color 0.5s ease;
+    }
+
+    /* Hidden-until-hovered HUD bars */
+    .hud-zone-top,
+    .hud-zone-bottom {
+      position: fixed;
+      left: 0;
+      width: 100%;
+      z-index: 40;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .hud-zone-top {
+      top: 0;
+      padding-top: 16px;
+    }
+
+    .hud-zone-bottom {
+      bottom: 0;
+      padding-bottom: 18px;
+    }
+
+    .hud-pill {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      background: var(--hud-bg);
+      border: 1px solid var(--hud-border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: var(--hud-text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      opacity: 0;
+      transform: translateY(6px);
+      transition:
+        opacity 0.35s ease,
+        transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+        background-color 0.4s ease,
+        color 0.4s ease;
+    }
+
+    .hud-zone-top .hud-pill {
+      transform: translateY(-6px);
+    }
+
+    .hud-visible .hud-pill {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .hud-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: 9999px;
+      background: transparent;
+      border: none;
+      color: inherit;
+      font-family: inherit;
+      font-size: 11.5px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, opacity 0.2s ease;
+      opacity: 0.82;
+    }
+
+    .hud-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      opacity: 1;
+    }
+
+    .hud-btn.active-mode {
+      background: rgba(255, 255, 255, 0.22);
+      opacity: 1;
+      font-weight: 500;
+    }
+
+    [data-theme="midnight"] .hud-btn:hover,
+    [data-theme="midnight"] .hud-btn.active-mode {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .hud-divider {
+      width: 1px;
+      height: 14px;
+      background: var(--hud-border);
+      margin: 0 2px;
+    }
+
+    /* Hidden input for mobile & reliable IME/keyboard capture */
+    #hidden-input {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: transparent;
+      caret-color: transparent;
+    }
+
+    /* Custom subtle toast message (replaces alert/confirm) */
+    .toast-banner {
+      position: fixed;
+      top: 56px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: var(--hud-bg);
+      border: 1px solid var(--hud-border);
+      backdrop-filter: blur(12px);
+      color: var(--hud-text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11.5px;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 50;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .toast-banner.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Serene Paper Completion Card & Custom Text Modal */
+    .paper-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 45;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(15, 19, 26, 0.22);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+
+    .paper-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .paper-card {
+      width: 100%;
+      max-width: 460px;
+      background: var(--card-bg);
+      border: 1px solid var(--hud-border);
+      border-radius: 16px;
+      padding: 26px 28px;
+      color: var(--ink-color);
+      box-shadow:
+        0 20px 48px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transform: translateY(10px) scale(0.98);
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.4s ease;
+    }
+
+    .paper-overlay.open .paper-card {
+      transform: translateY(0) scale(1);
+    }
+
+    .paper-textarea {
+      width: 100%;
+      min-height: 130px;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid var(--hud-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--ink-color);
+      font-family: 'Courier Prime', monospace;
+      font-size: 14px;
+      line-height: 1.55;
+      resize: vertical;
+      outline: none;
+      user-select: text;
+    }
+
+    .paper-textarea:focus {
+      border-color: var(--line-color);
+    }
+
+    .paper-action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid var(--hud-border);
+      background: rgba(255, 255, 255, 0.18);
+      color: var(--ink-color);
+      transition: background-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .paper-action-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .paper-action-btn.primary {
+      background: var(--ink-color);
+      color: var(--bg-lamp-core);
+      border-color: var(--ink-color);
+    }
+
+    .paper-action-btn.primary:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body data-theme="slate">
+
+  <!-- Main Typewriter Paper & Lamp Surface -->
+  <main id="paper-stage" class="paper-stage" aria-label="Distraction-free typing tutor canvas">
+    <div class="paper-grain"></div>
+    <div id="lamp-cone" class="lamp-cone"></div>
+
+    <!-- Top Practice Mode & Tutor Controls (Hidden until hovered near top edge) -->
+    <div id="hud-top" class="hud-zone-top">
+      <div class="hud-pill flex-wrap justify-center">
+        <button class="hud-btn active-mode" data-pack="prose" type="button">Poetic Prose</button>
+        <button class="hud-btn" data-pack="code" type="button">Code &amp; Syntax</button>
+        <button class="hud-btn" data-pack="common" type="button">Common Words</button>
+        <button id="btn-custom-open" class="hud-btn" type="button">Custom Text</button>
+
+        <div class="hud-divider"></div>
+
+        <!-- Forward-Flow vs Strict Mode Toggle -->
+        <button id="btn-error-mode" class="hud-btn" type="button" title="Toggle between authentic Forward-Flow ink or Strict-Stop correction">
+          <span id="label-error-mode">Mode: Forward-Flow</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Paper Lines Above the Platen Bar -->
+    <div id="paper-viewport" class="paper-viewport">
+      <div id="paper-column" class="paper-column">
+        <!-- Past completed lines + current target prompt line render here -->
+      </div>
+    </div>
+
+    <!-- Signature Horizontal Platen Baseline -->
+    <div class="platen-line">
+      <div id="tick-left" class="margin-tick"></div>
+      <div id="tick-right" class="margin-tick"></div>
+    </div>
+
+    <!-- Sliding Carriage Indicator Pill -->
+    <div id="carriage-pill" class="carriage-pill" title="Typewriter carriage"></div>
+
+    <!-- Faint Margin Telemetry Tucked Quietly Below Platen -->
+    <div id="margin-telemetry" class="margin-telemetry">
+      <span id="telemetry-pack">poetic prose</span>
+      <span id="telemetry-stats">0 wpm &middot; 100%</span>
+    </div>
+
+    <!-- Invisible input to capture typing seamlessly across desktop & mobile -->
+    <input
+      id="hidden-input"
+      type="text"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      aria-label="Typing tutor input"
+    />
+
+    <!-- Discreet Toast Notification -->
+    <div id="toast" class="toast-banner" role="status" aria-live="polite"></div>
+
+    <!-- Serene Session Completion Card -->
+    <div id="summary-overlay" class="paper-overlay" role="dialog" aria-modal="true" aria-labelledby="summary-title">
+      <div class="paper-card">
+        <div class="flex items-center justify-between border-b border-current/15 pb-3 mb-4">
+          <div>
+            <p class="text-[11px] uppercase tracking-widest opacity-60 font-mono">Sheet Complete</p>
+            <h2 id="summary-title" class="text-lg font-normal mt-0.5">Session Telemetry</h2>
+          </div>
+          <span id="summary-mode-badge" class="text-[11px] font-mono px-2.5 py-1 rounded-full border border-current/20 opacity-75">Forward-Flow</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 mb-5 text-center">
+          <div class="p-3 rounded-xl bg-white/15 border border-current/10">
+            <div id="stat-wpm" class="text-2xl font-normal tabular-nums">0</div>
+            <div class="text-[11px] font-mono opacity-65 mt-0.5">Net WPM</div>
+          </div>
+          <div class="p-3 rounded-xl bg-white/15 border border-current/10">
+            <div id="stat-acc" class="text-2xl font-normal tabular-nums">100%</div>
+            <div class="text-[11px] font-mono opacity-65 mt-0.5">Accuracy</div>
+          </div>
+          <div class="p-3 rounded-xl bg-white/15 border border-current/10">
+            <div id="stat-keys" class="text-2xl font-normal tabular-nums">0</div>
+            <div class="text-[11px] font-mono opacity-65 mt-0.5">Keystrokes</div>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <div class="text-[11px] font-mono uppercase tracking-wider opacity-65 mb-2">Problem Keys</div>
+          <div id="stat-problem-keys" class="flex flex-wrap gap-2 text-xs font-mono">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-3 pt-2 border-t border-current/15">
+          <button id="btn-repeat-passage" class="paper-action-btn" type="button">Repeat Sheet</button>
+          <button id="btn-next-passage" class="paper-action-btn primary" type="button">Next Passage &rarr;</button>
+        </div>
+        <p class="text-[11px] font-mono text-center opacity-55 mt-3">press Enter or Space for next passage</p>
+      </div>
+    </div>
+
+    <!-- Custom Text Modal -->
+    <div id="custom-overlay" class="paper-overlay" role="dialog" aria-modal="true" aria-labelledby="custom-title">
+      <div class="paper-card">
+        <div class="flex items-center justify-between mb-3">
+          <h2 id="custom-title" class="text-base font-normal">Load Custom Text</h2>
+          <button id="btn-custom-close" class="hud-btn text-xs" type="button">Esc</button>
+        </div>
+        <p class="text-xs opacity-70 mb-3 leading-relaxed">Paste a paragraph, poem, or code snippet below to load onto the platen.</p>
+        <textarea id="custom-textarea" class="paper-textarea" placeholder="Paste or write your practice passage here..."></textarea>
+        <div class="flex items-center justify-end gap-2.5 mt-4">
+          <button id="btn-custom-cancel" class="paper-action-btn" type="button">Cancel</button>
+          <button id="btn-custom-load" class="paper-action-btn primary" type="button">Load onto Platen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Minimalist Controls (Hidden until mouse approaches bottom/top edge) -->
+    <div id="hud-bottom" class="hud-zone-bottom">
+      <div class="hud-pill" id="hud-controls">
+        <!-- Lamp Theme Switcher -->
+        <button id="btn-theme" class="hud-btn" type="button" title="Switch lamp warmth">
+          <svg id="icon-lamp" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 2h8l4 10H4L8 2Z"/>
+            <path d="M12 12v6"/>
+            <path d="M8 22h8"/>
+            <path d="M12 18a2 2 0 0 0-2 2v2h4v-2a2 2 0 0 0-2-2Z"/>
+          </svg>
+          <span id="label-theme">Slate</span>
+        </button>
+
+        <div class="hud-divider"></div>
+
+        <!-- Mechanical Sound Toggle -->
+        <button id="btn-sound" class="hud-btn" type="button" title="Toggle mechanical typewriter sound">
+          <svg id="icon-sound-on" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          </svg>
+          <svg id="icon-sound-off" class="hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <line x1="23" y1="9" x2="17" y2="15"/>
+            <line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
+          <span id="label-sound">Sound On</span>
+        </button>
+
+        <div class="hud-divider"></div>
+
+        <!-- Restart / Next Passage -->
+        <button id="btn-restart" class="hud-btn" type="button" title="Restart current passage">
+          <span>Restart</span>
+        </button>
+
+        <button id="btn-skip" class="hud-btn" type="button" title="Load next passage">
+          <span>Next &rarr;</span>
+        </button>
+
+        <div class="hud-divider"></div>
+
+        <!-- Live WPM & Accuracy in Bottom HUD -->
+        <span id="hud-telemetry" class="px-2 opacity-80 tabular-nums">0 WPM &middot; 100%</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /**
+     * Lamp & Page — Minimalist Typing Tutor
+     * Core architecture:
+     * 1. Splits curated or custom passages into clean platen-width lines based on viewport width.
+     * 2. Renders completed lines scrolling upward with progressive fade/blur, and the active target line
+     *    right above the 1.5px platen baseline with per-character ink feedback.
+     * 3. Supports Forward-Flow mode (authentic typewriter ink where errors advance and scar the page)
+     *    and Strict-Stop mode (requires striking the exact expected character before advancing).
+     * 4. Tracks Net WPM, Accuracy %, total keystrokes, and problem keys for a serene completion card.
+     */
+
+    (function () {
+      // --- Curated Practice Text Packs ---
+      const TEXT_PACKS = {
+        prose: [
+          "The rain stopped just before midnight, leaving the slate rooftops glistening beneath a single amber streetlamp. Inside the quiet study, only the steady rhythm of brass keys broke the stillness of the room.",
+          "Every sentence laid onto paper is a small commitment in ink. Without a way to erase what has passed, the mind slows down, choosing each word with calm deliberation before the hammer strikes.",
+          "A warm pool of light fell across the desk while shadows gathered softly in the corners. Outside, wind moved through the tall pines like distant water washing over smooth stones.",
+          "To write well is to listen closely to the cadence of thought. Let the fingers settle into an unhurried pace, trusting accuracy over haste until clarity emerges line by line."
+        ],
+        code: [
+          "function debounce(fn, delay = 250) { let timer = null; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn.apply(this, args), delay); }; }",
+          "const clamp = (val, min, max) => Math.min(Math.max(val, min), max); const lerp = (a, b, t) => a + (b - a) * clamp(t, 0, 1);",
+          "def binary_search(items, target): low, high = 0, len(items) - 1; while low <= high: mid = (low + high) // 2; if items[mid] == target: return mid",
+          "export async function fetchJson(url, opts = {}) { const res = await fetch(url, { headers: { 'Accept': 'application/json' }, ...opts }); if (!res.ok) throw new Error(res.statusText); return res.json(); }"
+        ],
+        common: [
+          "the quick brown fox jumps over the lazy dog while soft evening light settles across the quiet wooden table near the window",
+          "time and rhythm grow from steady practice each small motion builds calm focus when there is nothing else pulling your attention away",
+          "always keep your shoulders relaxed and wrists level let every keystroke feel light and deliberate as words flow cleanly across the page",
+          "through early morning mist the narrow path winds beside the river where silver water carries fallen leaves toward the open sea"
+        ]
+      };
+
+      const PACK_NAMES = {
+        prose: 'poetic prose',
+        code: 'code & syntax',
+        common: 'common words',
+        custom: 'custom text'
+      };
+
+      const THEMES = [
+        { id: 'slate', label: 'Slate' },
+        { id: 'amber', label: 'Amber' },
+        { id: 'midnight', label: 'Midnight' }
+      ];
+
+      // --- Tutor State ---
+      let state = {
+        pack: 'prose',
+        passageIndex: 0,
+        rawPassage: TEXT_PACKS.prose[0],
+        customText: '',
+        targetLines: [],        // Array of line strings wrapped to current platen width
+        completedHistory: [],   // Array of { chars: [{ expected, typed, correct }] } for past lines
+        currentLineIdx: 0,
+        charIdx: 0,
+        currentLineResults: [], // Array of { expected, typed, correct } for active line
+        strictMode: false,      // false = Forward-Flow (default), true = Strict-Stop
+        strictErrorActive: false,
+        themeIndex: 0,
+        soundEnabled: true,
+        isComplete: false,
+
+        // Telemetry
+        startTime: null,
+        totalKeystrokes: 0,
+        correctKeystrokes: 0,
+        missedCounts: {}        // Map of expectedChar -> error count
+      };
+
+      // --- DOM Elements ---
+      const paperStage = document.getElementById('paper-stage');
+      const paperColumn = document.getElementById('paper-column');
+      const carriagePill = document.getElementById('carriage-pill');
+      const tickLeft = document.getElementById('tick-left');
+      const tickRight = document.getElementById('tick-right');
+      const hiddenInput = document.getElementById('hidden-input');
+      const hudTop = document.getElementById('hud-top');
+      const hudBottom = document.getElementById('hud-bottom');
+      const toastEl = document.getElementById('toast');
+
+      const telemetryPack = document.getElementById('telemetry-pack');
+      const telemetryStats = document.getElementById('telemetry-stats');
+      const hudTelemetry = document.getElementById('hud-telemetry');
+
+      const packButtons = document.querySelectorAll('[data-pack]');
+      const btnCustomOpen = document.getElementById('btn-custom-open');
+      const btnErrorMode = document.getElementById('btn-error-mode');
+      const labelErrorMode = document.getElementById('label-error-mode');
+
+      const btnTheme = document.getElementById('btn-theme');
+      const labelTheme = document.getElementById('label-theme');
+      const btnSound = document.getElementById('btn-sound');
+      const labelSound = document.getElementById('label-sound');
+      const iconSoundOn = document.getElementById('icon-sound-on');
+      const iconSoundOff = document.getElementById('icon-sound-off');
+      const btnRestart = document.getElementById('btn-restart');
+      const btnSkip = document.getElementById('btn-skip');
+
+      // Overlays
+      const summaryOverlay = document.getElementById('summary-overlay');
+      const summaryModeBadge = document.getElementById('summary-mode-badge');
+      const statWpm = document.getElementById('stat-wpm');
+      const statAcc = document.getElementById('stat-acc');
+      const statKeys = document.getElementById('stat-keys');
+      const statProblemKeys = document.getElementById('stat-problem-keys');
+      const btnRepeatPassage = document.getElementById('btn-repeat-passage');
+      const btnNextPassage = document.getElementById('btn-next-passage');
+
+      const customOverlay = document.getElementById('custom-overlay');
+      const customTextarea = document.getElementById('custom-textarea');
+      const btnCustomClose = document.getElementById('btn-custom-close');
+      const btnCustomCancel = document.getElementById('btn-custom-cancel');
+      const btnCustomLoad = document.getElementById('btn-custom-load');
+
+      // Hidden canvas for text width measurement
+      const measureCanvas = document.createElement('canvas');
+      const measureCtx = measureCanvas.getContext('2d');
+
+      let hudHideTimeout = null;
+      let toastTimeout = null;
+      let telemetryTimer = null;
+
+      // --- Web Audio API Typewriter Synthesizer ---
+      class TypewriterAudio {
+        constructor() {
+          this.ctx = null;
+        }
+
+        ensureContext() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              this.ctx = new AudioCtx();
+            }
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        }
+
+        playKeystroke(isSpace = false) {
+          if (!state.soundEnabled) return;
+          this.ensureContext();
+          if (!this.ctx) return;
+
+          const now = this.ctx.currentTime;
+          const pitchJitter = 0.92 + Math.random() * 0.16;
+
+          const bufferSize = Math.floor(this.ctx.sampleRate * (isSpace ? 0.045 : 0.032));
+          const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const output = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            const env = Math.pow(1 - i / bufferSize, 2.4);
+            output[i] = (Math.random() * 2 - 1) * env;
+          }
+
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = noiseBuffer;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime((isSpace ? 780 : 1450) * pitchJitter, now);
+          filter.Q.setValueAtTime(1.8, now);
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(isSpace ? 0.24 : 0.19, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + (isSpace ? 0.045 : 0.032));
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+
+          const osc = this.ctx.createOscillator();
+          const oscGain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime((isSpace ? 115 : 165) * pitchJitter, now);
+          osc.frequency.exponentialRampToValueAtTime(42, now + 0.03);
+
+          oscGain.gain.setValueAtTime(isSpace ? 0.16 : 0.11, now);
+          oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+
+          osc.connect(oscGain);
+          oscGain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.032);
+        }
+
+        playCarriageReturn() {
+          if (!state.soundEnabled) return;
+          this.ensureContext();
+          if (!this.ctx) return;
+
+          const now = this.ctx.currentTime;
+
+          const freqs = [2180, 4390];
+          freqs.forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, now);
+
+            const vol = idx === 0 ? 0.085 : 0.03;
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(vol, now + 0.006);
+            gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.55);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.58);
+          });
+
+          const slideDur = 0.14;
+          const bufLen = Math.floor(this.ctx.sampleRate * slideDur);
+          const buf = this.ctx.createBuffer(1, bufLen, this.ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < bufLen; i++) {
+            const t = i / bufLen;
+            const ratchet = Math.sin(t * Math.PI * 26) > 0 ? 1 : 0.35;
+            data[i] = (Math.random() * 2 - 1) * ratchet * Math.sin(t * Math.PI) * 0.5;
+          }
+
+          const src = this.ctx.createBufferSource();
+          src.buffer = buf;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(1100, now + 0.02);
+          filter.Q.setValueAtTime(2.2, now + 0.02);
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.11, now + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02 + slideDur);
+
+          src.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          src.start(now + 0.02);
+        }
+
+        playErrorClunk() {
+          if (!state.soundEnabled) return;
+          this.ensureContext();
+          if (!this.ctx) return;
+
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(102, now);
+          osc.frequency.exponentialRampToValueAtTime(38, now + 0.075);
+
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        }
+      }
+
+      const audio = new TypewriterAudio();
+
+      // --- Measurement & Line Wrapping Helpers ---
+      function getComputedFont() {
+        const sample = document.querySelector('.typed-line') || paperColumn;
+        const style = window.getComputedStyle(sample);
+        return `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      }
+
+      function measureTextWidth(text) {
+        measureCtx.font = getComputedFont();
+        const fontSize = parseFloat(window.getComputedStyle(paperColumn).fontSize) || 17;
+        const spacing = text.length * (fontSize * 0.015);
+        return measureCtx.measureText(text).width + spacing;
+      }
+
+      function getColumnBounds() {
+        const rect = paperColumn.getBoundingClientRect();
+        const style = window.getComputedStyle(paperColumn);
+        const padLeft = parseFloat(style.paddingLeft) || 28;
+        const padRight = parseFloat(style.paddingRight) || 28;
+        const innerLeft = rect.left + padLeft;
+        const innerWidth = Math.max(140, rect.width - padLeft - padRight);
+        return { innerLeft, innerWidth, innerRight: innerLeft + innerWidth };
+      }
+
+      // Wrap raw passage into clean platen-sized lines
+      function wrapPassageIntoLines(raw) {
+        const { innerWidth } = getColumnBounds();
+        const safeWidth = innerWidth * 0.94; // Leave comfortable breathing room before margin tick
+        const normalized = raw.replace(/\r\n/g, '\n').replace(/\t/g, '  ').trim();
+        const paragraphs = normalized.split('\n');
+        const resultLines = [];
+
+        paragraphs.forEach((para) => {
+          const cleanPara = para.replace(/\s+/g, ' ').trim();
+          if (!cleanPara) return;
+
+          const words = cleanPara.split(' ');
+          let line = '';
+
+          words.forEach((word) => {
+            const candidate = line ? `${line} ${word}` : word;
+            if (measureTextWidth(candidate) <= safeWidth) {
+              line = candidate;
+            } else {
+              if (line) {
+                // Trailing space at end of wrapped line so user types natural word rhythm
+                resultLines.push(line + ' ');
+              }
+              // Handle extra-long single tokens (e.g., code)
+              if (measureTextWidth(word) > safeWidth) {
+                let chunk = '';
+                for (const ch of word) {
+                  if (measureTextWidth(chunk + ch) > safeWidth && chunk) {
+                    resultLines.push(chunk);
+                    chunk = ch;
+                  } else {
+                    chunk += ch;
+                  }
+                }
+                line = chunk;
+              } else {
+                line = word;
+              }
+            }
+          });
+
+          if (line) {
+            resultLines.push(line);
+          }
+        });
+
+        return resultLines.length > 0 ? resultLines : ['begin typing on the platen'];
+      }
+
+      // Update platen margin ticks and align carriage pill + lamp pool with current character
+      function updateCarriageAndLamp() {
+        const { innerLeft, innerWidth, innerRight } = getColumnBounds();
+        tickLeft.style.left = `${innerLeft}px`;
+        tickRight.style.left = `${innerRight}px`;
+
+        const targetLine = state.targetLines[state.currentLineIdx] || '';
+        const typedPrefix = targetLine.slice(0, state.charIdx);
+        const currentChar = targetLine[state.charIdx] || ' ';
+
+        const prefixWidth = measureTextWidth(typedPrefix);
+        const charWidth = measureTextWidth(currentChar);
+        const cursorCenter = innerLeft + Math.min(prefixWidth + charWidth * 0.5, innerWidth);
+
+        carriagePill.style.left = `${cursorCenter}px`;
+        paperStage.style.setProperty('--lamp-x', `${cursorCenter}px`);
+      }
+
+      function triggerCarriageShake() {
+        carriagePill.classList.remove('reject');
+        void carriagePill.offsetWidth;
+        carriagePill.classList.add('reject');
+      }
+
+      function showToast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add('show');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+          toastEl.classList.remove('show');
+        }, 1800);
+      }
+
+      // --- Telemetry Calculation ---
+      function computeMetrics() {
+        const elapsedMinutes = state.startTime ? Math.max((Date.now() - state.startTime) / 60000, 1 / 60) : 0;
+        const netWpm = state.startTime && state.correctKeystrokes > 0
+          ? Math.round((state.correctKeystrokes / 5) / elapsedMinutes)
+          : 0;
+        const accuracy = state.totalKeystrokes > 0
+          ? Math.round((state.correctKeystrokes / state.totalKeystrokes) * 100)
+          : 100;
+        return { netWpm, accuracy };
+      }
+
+      function updateTelemetryUI() {
+        const { netWpm, accuracy } = computeMetrics();
+        const text = `${netWpm} wpm \u00B7 ${accuracy}%`;
+        telemetryStats.textContent = text;
+        hudTelemetry.textContent = `${netWpm} WPM \u00B7 ${accuracy}%`;
+        telemetryPack.textContent = PACK_NAMES[state.pack] || state.pack;
+      }
+
+      // --- Rendering Paper & Active Target Line ---
+      function renderPaper() {
+        const maxVisiblePast = 15;
+        const visiblePast = state.completedHistory.slice(-maxVisiblePast);
+        const totalPast = visiblePast.length;
+
+        const fragment = document.createDocumentFragment();
+
+        // Render completed lines scrolling upward with progressive fade and blur
+        visiblePast.forEach((lineObj, idx) => {
+          const distanceFromActive = totalPast - idx;
+          const lineEl = document.createElement('div');
+          lineEl.className = 'typed-line';
+
+          lineObj.chars.forEach((c) => {
+            const span = document.createElement('span');
+            span.textContent = c.expected;
+            if (!c.correct) {
+              span.className = 'char-error';
+            }
+            lineEl.appendChild(span);
+          });
+
+          const opacity = Math.max(0.06, Math.pow(0.76, distanceFromActive));
+          const blurPx = Math.min(2.6, Math.max(0, (distanceFromActive - 1) * 0.28));
+
+          lineEl.style.opacity = opacity.toFixed(3);
+          lineEl.style.filter = blurPx > 0 ? `blur(${blurPx.toFixed(2)}px)` : 'none';
+          fragment.appendChild(lineEl);
+        });
+
+        // Render current target prompt line directly above the platen baseline
+        const activeEl = document.createElement('div');
+        activeEl.className = 'typed-line active-line';
+
+        const targetLine = state.targetLines[state.currentLineIdx] || '';
+
+        for (let i = 0; i < targetLine.length; i++) {
+          const span = document.createElement('span');
+          const expectedChar = targetLine[i];
+          // Display visible space dot only if an error occurred on a space character
+          if (i < state.charIdx) {
+            const res = state.currentLineResults[i];
+            span.textContent = expectedChar === ' ' && !res.correct ? '\u00B7' : expectedChar;
+            span.className = res && res.correct ? 'char-correct' : 'char-error';
+          } else if (i === state.charIdx && !state.isComplete) {
+            span.textContent = expectedChar;
+            span.className = state.strictErrorActive ? 'char-current strict-error' : 'char-current';
+          } else {
+            span.textContent = expectedChar;
+            span.className = 'char-ghost';
+          }
+          activeEl.appendChild(span);
+        }
+
+        fragment.appendChild(activeEl);
+
+        paperColumn.innerHTML = '';
+        paperColumn.appendChild(fragment);
+
+        updateCarriageAndLamp();
+        updateTelemetryUI();
+      }
+
+      // --- Session Lifecycle ---
+      function loadPassage(rawText, resetIndex = false) {
+        state.rawPassage = rawText;
+        state.targetLines = wrapPassageIntoLines(rawText);
+        state.completedHistory = [];
+        state.currentLineIdx = 0;
+        state.charIdx = 0;
+        state.currentLineResults = [];
+        state.strictErrorActive = false;
+        state.isComplete = false;
+        state.startTime = null;
+        state.totalKeystrokes = 0;
+        state.correctKeystrokes = 0;
+        state.missedCounts = {};
+
+        closeSummary();
+        renderPaper();
+        focusInput();
+      }
+
+      function selectPack(packKey) {
+        state.pack = packKey;
+        packButtons.forEach((btn) => {
+          btn.classList.toggle('active-mode', btn.dataset.pack === packKey);
+        });
+        btnCustomOpen.classList.toggle('active-mode', packKey === 'custom');
+
+        if (packKey === 'custom' && state.customText.trim()) {
+          loadPassage(state.customText);
+        } else {
+          const list = TEXT_PACKS[packKey] || TEXT_PACKS.prose;
+          state.passageIndex = 0;
+          loadPassage(list[0]);
+        }
+      }
+
+      function nextPassage() {
+        if (state.pack === 'custom' && state.customText.trim()) {
+          loadPassage(state.customText);
+          return;
+        }
+        const list = TEXT_PACKS[state.pack] || TEXT_PACKS.prose;
+        state.passageIndex = (state.passageIndex + 1) % list.length;
+        loadPassage(list[state.passageIndex]);
+      }
+
+      function finishSession() {
+        state.isComplete = true;
+        clearInterval(telemetryTimer);
+        audio.playCarriageReturn();
+
+        const { netWpm, accuracy } = computeMetrics();
+        statWpm.textContent = netWpm;
+        statAcc.textContent = `${accuracy}%`;
+        statKeys.textContent = state.totalKeystrokes;
+        summaryModeBadge.textContent = state.strictMode ? 'Strict Mode' : 'Forward-Flow';
+
+        // Compute top 3 most-missed characters
+        const entries = Object.entries(state.missedCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3);
+
+        statProblemKeys.innerHTML = '';
+        if (entries.length === 0) {
+          const cleanBadge = document.createElement('span');
+          cleanBadge.className = 'opacity-65';
+          cleanBadge.textContent = 'None — flawless sheet';
+          statProblemKeys.appendChild(cleanBadge);
+        } else {
+          entries.forEach(([ch, count]) => {
+            const pill = document.createElement('span');
+            pill.className = 'px-2.5 py-1 rounded-lg bg-white/15 border border-current/15';
+            const displayChar = ch === ' ' ? 'Space' : `'${ch}'`;
+            pill.textContent = `${displayChar} (${count} miss${count > 1 ? 'es' : ''})`;
+            statProblemKeys.appendChild(pill);
+          });
+        }
+
+        summaryOverlay.classList.add('open');
+      }
+
+      function closeSummary() {
+        summaryOverlay.classList.remove('open');
+      }
+
+      // --- Typing Input Processor ---
+      function handleTypedChar(typedChar) {
+        if (state.isComplete || customOverlay.classList.contains('open')) return;
+
+        const targetLine = state.targetLines[state.currentLineIdx];
+        if (!targetLine) return;
+
+        if (!state.startTime) {
+          state.startTime = Date.now();
+          clearInterval(telemetryTimer);
+          telemetryTimer = setInterval(updateTelemetryUI, 500);
+        }
+
+        const expectedChar = targetLine[state.charIdx];
+        const isMatch = typedChar === expectedChar;
+
+        state.totalKeystrokes += 1;
+
+        if (isMatch) {
+          state.correctKeystrokes += 1;
+          state.strictErrorActive = false;
+          state.currentLineResults.push({
+            expected: expectedChar,
+            typed: typedChar,
+            correct: true
+          });
+          state.charIdx += 1;
+          audio.playKeystroke(expectedChar === ' ');
+        } else {
+          // Record missed character
+          state.missedCounts[expectedChar] = (state.missedCounts[expectedChar] || 0) + 1;
+          audio.playErrorClunk();
+          triggerCarriageShake();
+
+          if (state.strictMode) {
+            // Strict-Stop Mode: stay on character until corrected
+            state.strictErrorActive = true;
+            renderPaper();
+            return;
+          } else {
+            // Forward-Flow Mode: permanently ink the mistake and advance
+            state.currentLineResults.push({
+              expected: expectedChar,
+              typed: typedChar,
+              correct: false
+            });
+            state.charIdx += 1;
+          }
+        }
+
+        // Check if current line is finished
+        if (state.charIdx >= targetLine.length) {
+          state.completedHistory.push({ chars: [...state.currentLineResults] });
+          state.currentLineIdx += 1;
+          state.charIdx = 0;
+          state.currentLineResults = [];
+          state.strictErrorActive = false;
+
+          if (state.currentLineIdx >= state.targetLines.length) {
+            renderPaper();
+            finishSession();
+            return;
+          } else {
+            audio.playCarriageReturn();
+          }
+        }
+
+        renderPaper();
+      }
+
+      // --- Keyboard & Input Event Handlers ---
+      function focusInput() {
+        if (customOverlay.classList.contains('open') || summaryOverlay.classList.contains('open')) return;
+        if (document.activeElement !== hiddenInput) {
+          hiddenInput.focus({ preventScroll: true });
+        }
+      }
+
+      document.addEventListener('keydown', (e) => {
+        // Handle modal shortcuts first
+        if (customOverlay.classList.contains('open')) {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            closeCustomModal();
+          }
+          return;
+        }
+
+        if (summaryOverlay.classList.contains('open')) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            nextPassage();
+          } else if (e.key.toLowerCase() === 'r') {
+            e.preventDefault();
+            loadPassage(state.rawPassage);
+          }
+          return;
+        }
+
+        // Allow browser refresh / devtools
+        if ((e.metaKey || e.ctrlKey) && ['r', 'i'].includes(e.key.toLowerCase())) {
+          return;
+        }
+
+        // Block Backspace, Delete, arrows, and undo shortcuts to preserve forward-only ethos
+        const blockedKeys = [
+          'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+          'Home', 'End', 'PageUp', 'PageDown'
+        ];
+
+        if (blockedKeys.includes(e.key) || ((e.metaKey || e.ctrlKey) && ['z', 'y', 'x', 'a'].includes(e.key.toLowerCase()))) {
+          e.preventDefault();
+          audio.playErrorClunk();
+          triggerCarriageShake();
+          return;
+        }
+
+        // Allow Enter to act as Space when trailing space is at end of wrapped line
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const targetLine = state.targetLines[state.currentLineIdx] || '';
+          if (targetLine[state.charIdx] === ' ') {
+            handleTypedChar(' ');
+          } else {
+            audio.playErrorClunk();
+            triggerCarriageShake();
+          }
+          return;
+        }
+
+        focusInput();
+      });
+
+      hiddenInput.addEventListener('beforeinput', (e) => {
+        if (
+          e.inputType === 'deleteContentBackward' ||
+          e.inputType === 'deleteContentForward' ||
+          e.inputType === 'deleteWordBackward' ||
+          e.inputType === 'historyUndo'
+        ) {
+          e.preventDefault();
+          audio.playErrorClunk();
+          triggerCarriageShake();
+          return;
+        }
+
+        if (e.data) {
+          e.preventDefault();
+          for (const ch of e.data) {
+            handleTypedChar(ch);
+          }
+          hiddenInput.value = '';
+        }
+      });
+
+      hiddenInput.addEventListener('input', () => {
+        if (hiddenInput.value) {
+          for (const ch of hiddenInput.value) {
+            handleTypedChar(ch);
+          }
+          hiddenInput.value = '';
+        }
+      });
+
+      paperStage.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.hud-pill') || e.target.closest('.paper-overlay')) return;
+        focusInput();
+      });
+
+      // --- Hidden-Until-Hovered Edge Controls ---
+      function revealHudTemporarily() {
+        hudTop.classList.add('hud-visible');
+        hudBottom.classList.add('hud-visible');
+        clearTimeout(hudHideTimeout);
+        hudHideTimeout = setTimeout(() => {
+          if (!hudBottom.matches(':hover') && !hudTop.matches(':hover')) {
+            hudTop.classList.remove('hud-visible');
+            hudBottom.classList.remove('hud-visible');
+          }
+        }, 2400);
+      }
+
+      document.addEventListener('mousemove', (e) => {
+        const edgeThreshold = 76;
+        if (e.clientY <= edgeThreshold || e.clientY >= window.innerHeight - edgeThreshold) {
+          revealHudTemporarily();
+        }
+      });
+
+      document.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        if (!touch) return;
+        const edgeThreshold = 84;
+        if (touch.clientY <= edgeThreshold || touch.clientY >= window.innerHeight - edgeThreshold) {
+          revealHudTemporarily();
+        }
+      }, { passive: true });
+
+      [hudTop, hudBottom].forEach((zone) => {
+        zone.addEventListener('mouseenter', () => {
+          clearTimeout(hudHideTimeout);
+          hudTop.classList.add('hud-visible');
+          hudBottom.classList.add('hud-visible');
+        });
+        zone.addEventListener('mouseleave', () => {
+          revealHudTemporarily();
+        });
+      });
+
+      // --- HUD Button Actions ---
+      packButtons.forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectPack(btn.dataset.pack);
+          showToast(`Loaded ${PACK_NAMES[btn.dataset.pack]}`);
+        });
+      });
+
+      btnErrorMode.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.strictMode = !state.strictMode;
+        state.strictErrorActive = false;
+        labelErrorMode.textContent = state.strictMode ? 'Mode: Strict-Stop' : 'Mode: Forward-Flow';
+        btnErrorMode.classList.toggle('active-mode', state.strictMode);
+        renderPaper();
+        showToast(state.strictMode ? 'Strict-Stop: must fix mistyped keys' : 'Forward-Flow: permanent typewriter ink');
+        focusInput();
+      });
+
+      function applyTheme() {
+        const theme = THEMES[state.themeIndex];
+        document.body.setAttribute('data-theme', theme.id);
+        labelTheme.textContent = theme.label;
+      }
+
+      function applySoundUI() {
+        labelSound.textContent = state.soundEnabled ? 'Sound On' : 'Muted';
+        iconSoundOn.classList.toggle('hidden', !state.soundEnabled);
+        iconSoundOff.classList.toggle('hidden', state.soundEnabled);
+      }
+
+      btnTheme.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.themeIndex = (state.themeIndex + 1) % THEMES.length;
+        applyTheme();
+        focusInput();
+      });
+
+      btnSound.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.soundEnabled = !state.soundEnabled;
+        applySoundUI();
+        if (state.soundEnabled) audio.playKeystroke(false);
+        focusInput();
+      });
+
+      btnRestart.addEventListener('click', (e) => {
+        e.stopPropagation();
+        loadPassage(state.rawPassage);
+        showToast('Sheet reset');
+      });
+
+      btnSkip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        nextPassage();
+        showToast('Next passage loaded');
+      });
+
+      // --- Custom Text Modal Actions ---
+      function openCustomModal() {
+        customTextarea.value = state.customText || '';
+        customOverlay.classList.add('open');
+        setTimeout(() => customTextarea.focus(), 50);
+      }
+
+      function closeCustomModal() {
+        customOverlay.classList.remove('open');
+        focusInput();
+      }
+
+      btnCustomOpen.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCustomModal();
+      });
+
+      btnCustomClose.addEventListener('click', closeCustomModal);
+      btnCustomCancel.addEventListener('click', closeCustomModal);
+
+      btnCustomLoad.addEventListener('click', () => {
+        const text = customTextarea.value.trim();
+        if (!text) {
+          showToast('Enter some text first');
+          return;
+        }
+        state.customText = text;
+        state.pack = 'custom';
+        packButtons.forEach((btn) => btn.classList.remove('active-mode'));
+        btnCustomOpen.classList.add('active-mode');
+        closeCustomModal();
+        loadPassage(text);
+        showToast('Custom sheet loaded');
+      });
+
+      // --- Summary Card Actions ---
+      btnRepeatPassage.addEventListener('click', () => {
+        loadPassage(state.rawPassage);
+      });
+
+      btnNextPassage.addEventListener('click', () => {
+        nextPassage();
+      });
+
+      // --- Responsive Resize Recalculation ---
+      window.addEventListener('resize', () => {
+        // Re-wrap lines if viewport width changes while preserving progress cleanly
+        if (!state.startTime) {
+          state.targetLines = wrapPassageIntoLines(state.rawPassage);
+          renderPaper();
+        } else {
+          updateCarriageAndLamp();
+        }
+      });
+
+      // --- Initialization ---
+      window.addEventListener('load', () => {
+        applyTheme();
+        applySoundUI();
+        loadPassage(TEXT_PACKS.prose[0]);
+
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(() => {
+            state.targetLines = wrapPassageIntoLines(state.rawPassage);
+            renderPaper();
+          });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
