@@ -416,20 +416,48 @@
       margin: 0 2px;
     }
 
-    /* Hidden input for mobile & reliable IME/keyboard capture */
+    /* Full-viewport transparent input for mobile keyboards, IMEs, & reliable iframe focus */
     #hidden-input {
       position: fixed;
-      top: 50%;
-      left: 50%;
-      width: 1px;
-      height: 1px;
-      opacity: 0;
-      pointer-events: none;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.001;
+      z-index: 5;
+      cursor: text;
       border: none;
       outline: none;
       background: transparent;
       color: transparent;
       caret-color: transparent;
+      font-size: 16px; /* Prevents iOS Safari auto-zoom on focus */
+    }
+
+    /* Subtle unobtrusive focus prompt when embedded iframe does not yet have focus */
+    .focus-hint {
+      position: absolute;
+      top: calc(56% + 36px);
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--ink-muted);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 16;
+      transition: opacity 0.35s ease;
+      animation: gentlePulse 2.6s ease-in-out infinite;
+      white-space: nowrap;
+    }
+
+    .focus-hint.visible {
+      opacity: 0.72;
+    }
+
+    @keyframes gentlePulse {
+      0%, 100% { opacity: 0.45; }
+      50% { opacity: 0.85; }
     }
 
     /* Custom subtle toast message (replaces alert/confirm) */
@@ -597,7 +625,10 @@
       <span id="telemetry-stats">0 wpm &middot; 100%</span>
     </div>
 
-    <!-- Invisible input to capture typing seamlessly across desktop & mobile -->
+    <!-- Gentle Focus Prompt for Unfocused Preview Iframes -->
+    <div id="focus-hint" class="focus-hint">click anywhere &amp; start typing&hellip;</div>
+
+    <!-- Full-viewport transparent input to capture typing seamlessly across desktop, iframes & mobile -->
     <input
       id="hidden-input"
       type="text"
@@ -804,6 +835,7 @@
       const telemetryPack = document.getElementById('telemetry-pack');
       const telemetryStats = document.getElementById('telemetry-stats');
       const hudTelemetry = document.getElementById('hud-telemetry');
+      const focusHint = document.getElementById('focus-hint');
 
       const packButtons = document.querySelectorAll('[data-pack]');
       const btnCustomOpen = document.getElementById('btn-custom-open');
@@ -1333,14 +1365,30 @@
       }
 
       // --- Keyboard & Input Event Handlers ---
+      function isAnyModalOpen() {
+        return customOverlay.classList.contains('open') || summaryOverlay.classList.contains('open');
+      }
+
+      function updateFocusHint() {
+        const hasFocus = document.hasFocus() && (document.activeElement === hiddenInput || document.activeElement === document.body);
+        const shouldShow = !hasFocus && !state.startTime && !isAnyModalOpen();
+        focusHint.classList.toggle('visible', shouldShow);
+      }
+
       function focusInput() {
-        if (customOverlay.classList.contains('open') || summaryOverlay.classList.contains('open')) return;
+        if (isAnyModalOpen()) return;
+        try {
+          window.focus();
+        } catch (_) {}
         if (document.activeElement !== hiddenInput) {
           hiddenInput.focus({ preventScroll: true });
         }
+        updateFocusHint();
       }
 
-      document.addEventListener('keydown', (e) => {
+      // Global window keydown listener handles printable keys, Space, Backspace, and Enter directly
+      // and calls preventDefault() so hiddenInput stays empty and never double-triggers.
+      window.addEventListener('keydown', (e) => {
         // Handle modal shortcuts first
         if (customOverlay.classList.contains('open')) {
           if (e.key === 'Escape') {
@@ -1361,8 +1409,19 @@
           return;
         }
 
-        // Allow browser refresh / devtools
-        if ((e.metaKey || e.ctrlKey) && ['r', 'i'].includes(e.key.toLowerCase())) {
+        // Do not intercept if typing inside any actual form field other than hiddenInput
+        const activeTag = document.activeElement && document.activeElement.tagName;
+        if (document.activeElement !== hiddenInput && (activeTag === 'INPUT' || activeTag === 'TEXTAREA')) {
+          return;
+        }
+
+        // Allow browser refresh / devtools shortcuts
+        if ((e.metaKey || e.ctrlKey) && ['r', 'i', 'j', 'c'].includes(e.key.toLowerCase())) {
+          return;
+        }
+
+        // Defer IME / mobile composition keystrokes (keyCode 229 or 'Unidentified') to the input event fallback
+        if (e.isComposing || e.key === 'Unidentified' || e.keyCode === 229) {
           return;
         }
 
@@ -1376,12 +1435,14 @@
           e.preventDefault();
           audio.playErrorClunk();
           triggerCarriageShake();
+          focusInput();
           return;
         }
 
         // Allow Enter to act as Space when trailing space is at end of wrapped line
         if (e.key === 'Enter') {
           e.preventDefault();
+          focusInput();
           const targetLine = state.targetLines[state.currentLineIdx] || '';
           if (targetLine[state.charIdx] === ' ') {
             handleTypedChar(' ');
@@ -1392,44 +1453,40 @@
           return;
         }
 
-        focusInput();
-      });
-
-      hiddenInput.addEventListener('beforeinput', (e) => {
-        if (
-          e.inputType === 'deleteContentBackward' ||
-          e.inputType === 'deleteContentForward' ||
-          e.inputType === 'deleteWordBackward' ||
-          e.inputType === 'historyUndo'
-        ) {
+        // Handle all printable single characters directly on keydown
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
           e.preventDefault();
-          audio.playErrorClunk();
-          triggerCarriageShake();
-          return;
-        }
-
-        if (e.data) {
-          e.preventDefault();
-          for (const ch of e.data) {
-            handleTypedChar(ch);
-          }
           hiddenInput.value = '';
+          focusInput();
+          handleTypedChar(e.key);
+        }
+      }, true);
+
+      // Fallback input handler exclusively for IME composition & mobile virtual keyboards
+      // where keydown does not emit a standard printable key (e.g., keyCode 229 / Unidentified).
+      hiddenInput.addEventListener('input', (e) => {
+        if (e.isComposing) return;
+        const val = hiddenInput.value;
+        hiddenInput.value = '';
+        if (!val || isAnyModalOpen()) return;
+        for (const ch of val) {
+          handleTypedChar(ch);
         }
       });
 
-      hiddenInput.addEventListener('input', () => {
-        if (hiddenInput.value) {
-          for (const ch of hiddenInput.value) {
-            handleTypedChar(ch);
-          }
-          hiddenInput.value = '';
-        }
+      // Focus input immediately on any pointer/touch/click interaction anywhere outside HUD controls & modals
+      ['pointerdown', 'click', 'touchstart'].forEach((evtName) => {
+        document.addEventListener(evtName, (e) => {
+          if (e.target.closest('.hud-pill') || e.target.closest('.paper-overlay')) return;
+          audio.ensureContext();
+          focusInput();
+        }, { passive: true });
       });
 
-      paperStage.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('.hud-pill') || e.target.closest('.paper-overlay')) return;
-        focusInput();
-      });
+      window.addEventListener('focus', updateFocusHint);
+      window.addEventListener('blur', updateFocusHint);
+      hiddenInput.addEventListener('focus', updateFocusHint);
+      hiddenInput.addEventListener('blur', updateFocusHint);
 
       // --- Hidden-Until-Hovered Edge Controls ---
       function revealHudTemporarily() {
@@ -1590,11 +1647,14 @@
         applyTheme();
         applySoundUI();
         loadPassage(TEXT_PACKS.prose[0]);
+        focusInput();
+        setTimeout(focusInput, 120);
 
         if (document.fonts && document.fonts.ready) {
           document.fonts.ready.then(() => {
             state.targetLines = wrapPassageIntoLines(state.rawPassage);
             renderPaper();
+            focusInput();
           });
         }
       });
