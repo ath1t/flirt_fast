@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Lamp & Page — Distraction-Free Typing Tutor</title>
+  <title>Flirt Fast — Distraction-Free Typing Tutor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -589,6 +589,8 @@
     <!-- Top Practice Mode & Tutor Controls (Hidden until hovered near top edge) -->
     <div id="hud-top" class="hud-zone-top">
       <div class="hud-pill flex-wrap justify-center">
+        <span class="px-2.5 py-1 text-[11.5px] font-medium tracking-wide opacity-90">Flirt Fast</span>
+        <div class="hud-divider"></div>
         <button class="hud-btn active-mode" data-pack="prose" type="button">Poetic Prose</button>
         <button class="hud-btn" data-pack="code" type="button">Code &amp; Syntax</button>
         <button class="hud-btn" data-pack="common" type="button">Common Words</button>
@@ -647,7 +649,7 @@
       <div class="paper-card">
         <div class="flex items-center justify-between border-b border-current/15 pb-3 mb-4">
           <div>
-            <p class="text-[11px] uppercase tracking-widest opacity-60 font-mono">Sheet Complete</p>
+            <p class="text-[11px] uppercase tracking-widest opacity-60 font-mono">Flirt Fast &middot; Sheet Complete</p>
             <h2 id="summary-title" class="text-lg font-normal mt-0.5">Session Telemetry</h2>
           </div>
           <span id="summary-mode-badge" class="text-[11px] font-mono px-2.5 py-1 rounded-full border border-current/20 opacity-75">Forward-Flow</span>
@@ -674,9 +676,9 @@
             <!-- Populated dynamically -->
           </div>
         </div>
-
-        <div class="flex items-center justify-between gap-3 pt-2 border-t border-current/15">
+        <div class="flex items-center justify-between gap-2.5 pt-2 border-t border-current/15">
           <button id="btn-repeat-passage" class="paper-action-btn" type="button">Repeat Sheet</button>
+          <button id="btn-export-report" class="paper-action-btn" type="button">Export .txt</button>
           <button id="btn-next-passage" class="paper-action-btn primary" type="button">Next Passage &rarr;</button>
         </div>
         <p class="text-[11px] font-mono text-center opacity-55 mt-3">press Enter or Space for next passage</p>
@@ -751,7 +753,7 @@
 
   <script>
     /**
-     * Lamp & Page — Minimalist Typing Tutor
+     * Flirt Fast — Minimalist Typing Tutor
      * Core architecture:
      * 1. Splits curated or custom passages into clean platen-width lines based on viewport width.
      * 2. Renders completed lines scrolling upward with progressive fade/blur, and the active target line
@@ -859,6 +861,7 @@
       const statKeys = document.getElementById('stat-keys');
       const statProblemKeys = document.getElementById('stat-problem-keys');
       const btnRepeatPassage = document.getElementById('btn-repeat-passage');
+      const btnExportReport = document.getElementById('btn-export-report');
       const btnNextPassage = document.getElementById('btn-next-passage');
 
       const customOverlay = document.getElementById('custom-overlay');
@@ -1625,6 +1628,42 @@
       // --- Summary Card Actions ---
       btnRepeatPassage.addEventListener('click', () => {
         loadPassage(state.rawPassage);
+      });
+
+      btnExportReport.addEventListener('click', () => {
+        const { netWpm, accuracy } = computeMetrics();
+        const modeLabel = state.strictMode ? 'Strict-Stop' : 'Forward-Flow';
+        const packLabel = PACK_NAMES[state.pack] || state.pack;
+        const missedEntries = Object.entries(state.missedCounts)
+          .sort((a, b) => b[1] - a[1])
+          .map(([ch, cnt]) => `${ch === ' ' ? 'Space' : `'${ch}'`} (${cnt})`)
+          .join(', ') || 'None';
+
+        const reportText = [
+          'Flirt Fast — Typing Session Report',
+          '==================================',
+          `Date:        ${new Date().toLocaleString()}`,
+          `Pack:        ${packLabel}`,
+          `Mode:        ${modeLabel}`,
+          `Net WPM:     ${netWpm}`,
+          `Accuracy:    ${accuracy}%`,
+          `Keystrokes:  ${state.totalKeystrokes}`,
+          `Problem Keys: ${missedEntries}`,
+          '',
+          'Passage:',
+          state.rawPassage
+        ].join('\n');
+
+        const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `flirt-fast-report-${Date.now()}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showToast('Exported flirt-fast-report.txt');
       });
 
       btnNextPassage.addEventListener('click', () => {
